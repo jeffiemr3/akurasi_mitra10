@@ -4,9 +4,9 @@ import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatf
 /// File ini dibuat manual (bukan lewat `flutterfire configure`) supaya bisa
 /// langsung dipakai tanpa install Flutter/FlutterFire CLI di komputer.
 ///
-/// PENTING: lengkapi 3 nilai yang masih kosong di bawah (projectId,
-/// messagingSenderId, appId) — ambil dari Firebase Console:
-/// Project Settings > scroll ke "Your apps" > SDK config.
+/// appId & messagingSenderId sudah diisi nilai asli dari Firebase Console.
+/// projectId & storageBucket masih tebakan (belum dikonfirmasi manual dari
+/// Console) — kemungkinan besar sudah benar, tapi cek lagi kalau ada masalah.
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) return web;
@@ -24,7 +24,7 @@ class DefaultFirebaseOptions {
     databaseURL: "https://akurasi-mitra10-default-rtdb.asia-southeast1.firebasedatabase.app",
     projectId: "akurasi-mitra10", // TODO: konfirmasi, biasanya sama seperti sebelum ".firebaseapp.com" di authDomain
     storageBucket: "akurasi-mitra10.firebasestorage.app", // TODO: cek nilai aslinya di console
-    messagingSenderId: "ISI_DARI_CONSOLE", // TODO: wajib diisi
-    appId: "ISI_DARI_CONSOLE", // TODO: wajib diisi
+    messagingSenderId: "451811488658",
+    appId: "1:451811488658:web:68f1776af4fff3cc75074b",
   );
 }
