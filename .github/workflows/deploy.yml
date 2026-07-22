@@ -30,6 +30,7 @@ jobs:
 
       # PENTING: ganti "akurasi_app" di bawah dengan nama repo GitHub kamu yang
       # sebenarnya, kalau beda. Ini supaya asset/link di web build tidak 404.
+        flutter create . --platforms=web
       - run: flutter build web --release --base-href "/akurasi_mitra10/"
 
       - uses: actions/upload-pages-artifact@v3
