@@ -4,6 +4,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import 'loading_screen.dart';
 
 /// Layar "Upload Data" — pilih file XLSX (hit/miss/over), lalu simpan
 /// hasilnya ke Firebase Realtime Database di node `categories`.
@@ -46,6 +47,18 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
       }
 
       final bytes = result.files.single.bytes!;
+
+      // Tampilkan layar loading penuh selagi parsing + upload berjalan
+      if (!mounted) return;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => const LoadingScreen(
+            message: 'Mohon tunggu...',
+            subMessage: 'Sedang mengunggah data ke database',
+          ),
+        ),
+      );
+
       final excelFile = xls.Excel.decodeBytes(bytes);
 
       // catId -> {name, items}
@@ -142,6 +155,7 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
       }
 
       if (grouped.isEmpty) {
+        if (mounted) Navigator.of(context).pop(); // tutup layar loading
         setState(() {
           _loading = false;
           _statusMessage = 'Tidak ada baris yang cocok — cek nama kolom di file.';
@@ -160,12 +174,14 @@ class _UploadDataScreenState extends State<UploadDataScreen> {
       });
       await dbRef.update(updates);
 
+      if (mounted) Navigator.of(context).pop(); // tutup layar loading
       setState(() {
         _loading = false;
         _success = true;
         _statusMessage = 'Berhasil: ${grouped.length} kategori tersimpan ke database.';
       });
     } catch (e) {
+      if (mounted) Navigator.of(context).pop(); // tutup layar loading
       setState(() {
         _loading = false;
         _success = false;
