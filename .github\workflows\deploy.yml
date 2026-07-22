@@ -1,0 +1,47 @@
+name: Deploy Flutter Web to GitHub Pages
+
+# Jalan otomatis tiap kali ada push ke branch main,
+# atau bisa dipicu manual lewat tab "Actions" di GitHub.
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - run: flutter pub get
+
+      # PENTING: ganti "akurasi_app" di bawah dengan nama repo GitHub kamu yang
+      # sebenarnya, kalau beda. Ini supaya asset/link di web build tidak 404.
+      - run: flutter build web --release --base-href "/akurasi_mitra10/"
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment
