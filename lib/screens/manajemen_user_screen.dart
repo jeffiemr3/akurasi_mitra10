@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_database/firebase_database.dart';
 
 import '../models/app_user.dart';
+import '../services/realtime_db_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/common_widgets.dart';
 import 'tambah_user_screen.dart';
 
+/// Porting dari src/screens/ManajemenUserScreen.tsx — list user + search +
+/// toggle status active/idle + hapus user (kecuali akun `admin`).
 class ManajemenUserScreen extends StatefulWidget {
   const ManajemenUserScreen({super.key});
 
@@ -13,58 +16,38 @@ class ManajemenUserScreen extends StatefulWidget {
 }
 
 class _ManajemenUserScreenState extends State<ManajemenUserScreen> {
-  final DatabaseReference _usersRef = FirebaseDatabase.instance.ref('users');
+  final _db = RealtimeDbService.instance;
+  final _searchController = TextEditingController();
+  String _search = '';
 
-  List<AppUser> _parseUsers(DataSnapshot snapshot) {
-    final data = snapshot.value;
-    if (data == null || data is! Map) return [];
-    final map = Map<dynamic, dynamic>.from(data);
-    final list = map.entries
-        .map((e) => AppUser.fromMap(
-              e.key.toString(),
-              Map<dynamic, dynamic>.from(e.value as Map),
-            ))
-        .toList();
-    list.sort((a, b) => a.name.compareTo(b.name));
-    return list;
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _confirmDelete(AppUser user) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Hapus user?'),
-        content: Text(
-          'Akun "${user.name}" akan dihapus permanen dan tidak bisa login lagi.',
-        ),
+        title: const Text('Hapus User Ini?'),
+        content: const Text(
+            'Akun ini tidak akan dapat digunakan lagi untuk login.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
+            onPressed: () => Navigator.of(ctx).pop(false),
             child: const Text('Batal'),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.coral),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.coral),
+            onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text('Hapus'),
           ),
         ],
       ),
     );
-
-    if (confirmed != true) return;
-
-    try {
-      await _usersRef.child(user.id).remove();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${user.name} dihapus')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal menghapus: $e')),
-      );
+    if (confirmed == true) {
+      await _db.deleteUser(user.id);
     }
   }
 
@@ -74,169 +57,124 @@ class _ManajemenUserScreenState extends State<ManajemenUserScreen> {
       backgroundColor: AppColors.bg,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-          child: Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: AppColors.card,
-              borderRadius: BorderRadius.circular(28),
-            ),
-            padding: const EdgeInsets.fromLTRB(20, 22, 20, 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    _CircleIconButton(
-                      icon: Icons.arrow_back,
-                      onTap: () => Navigator.maybePop(context),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  BackCircleButton(onPressed: () => Navigator.of(context).pop()),
+                  const SizedBox(width: 10),
+                  const Expanded(child: ScreenLabel('Manajemen User')),
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.navy,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    const SizedBox(width: 10),
-                    const Expanded(
-                      child: Text(
-                        'Manajemen user',
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const TambahUserScreen(),
+                      ),
+                    ),
+                    icon: const Icon(Icons.person_add_alt_1, size: 16),
+                    label: const Text('User Baru'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Expanded(
+                child: AppCard(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Manajemen User',
                         style: TextStyle(
                           fontSize: 20,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.bold,
                           color: AppColors.ink,
                         ),
                       ),
-                    ),
-                    _AddUserButton(
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const TambahUserScreen(),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Daftar akun auditor dan administrator Mitra10',
+                        style:
+                            TextStyle(fontSize: 12, color: AppColors.inkSoft),
+                      ),
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: _searchController,
+                        onChanged: (v) => setState(() => _search = v),
+                        decoration: InputDecoration(
+                          hintText:
+                              'Cari berdasarkan nama, username, atau kategori...',
+                          prefixIcon: const Icon(Icons.search, size: 18),
+                          filled: true,
+                          fillColor: AppColors.fieldFill,
+                          contentPadding: const EdgeInsets.symmetric(
+                              vertical: 10, horizontal: 12),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: AppColors.line),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                StreamBuilder<DatabaseEvent>(
-                  stream: _usersRef.onValue,
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData || snapshot.data!.snapshot.value == null) {
-                      return const Text(
-                        '0 akun aktif · 1 kategori per akun',
-                        style: TextStyle(fontSize: 12, color: AppColors.inkSoft),
-                      );
-                    }
-                    final users = _parseUsers(snapshot.data!.snapshot);
-                    final activeCount = users.where((u) => u.isActive).length;
-                    return Text(
-                      '$activeCount akun aktif · 1 kategori per akun',
-                      style: const TextStyle(fontSize: 12, color: AppColors.inkSoft),
-                    );
-                  },
-                ),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: StreamBuilder<DatabaseEvent>(
-                    stream: _usersRef.onValue,
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(
-                          child: CircularProgressIndicator(color: AppColors.navy),
-                        );
-                      }
-                      if (snapshot.hasError) {
-                        return Center(
-                          child: Text('Gagal memuat data: ${snapshot.error}'),
-                        );
-                      }
-                      final value = snapshot.data?.snapshot.value;
-                      if (value == null) {
-                        return const Center(
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(vertical: 40),
-                            child: Text(
-                              'Belum ada user.\nTap "Tambah" untuk membuat akun.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: AppColors.inkSoft, fontSize: 13),
-                            ),
-                          ),
-                        );
-                      }
-                      final users = _parseUsers(snapshot.data!.snapshot);
-                      return ListView.separated(
-                        itemCount: users.length,
-                        separatorBuilder: (_, __) =>
-                            const Divider(height: 1, color: AppColors.line),
-                        itemBuilder: (context, i) => _UserRow(
-                          user: users[i],
-                          onDelete: () => _confirmDelete(users[i]),
+                      const SizedBox(height: 14),
+                      Expanded(
+                        child: StreamBuilder<List<AppUser>>(
+                          stream: _db.watchUsers(),
+                          builder: (context, snapshot) {
+                            if (!snapshot.hasData) {
+                              return const Center(
+                                  child: CircularProgressIndicator());
+                            }
+                            final query = _search.toLowerCase();
+                            final users = snapshot.data!
+                                .where((u) =>
+                                    u.name.toLowerCase().contains(query) ||
+                                    u.username.toLowerCase().contains(query) ||
+                                    (u.category ?? '')
+                                        .toLowerCase()
+                                        .contains(query))
+                                .toList();
+
+                            if (users.isEmpty) {
+                              return const Center(
+                                child: Text(
+                                  'Belum ada user.',
+                                  style: TextStyle(color: AppColors.inkSoft),
+                                ),
+                              );
+                            }
+
+                            return ListView.separated(
+                              itemCount: users.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 10),
+                              itemBuilder: (context, index) =>
+                                  _UserRow(
+                                user: users[index],
+                                onToggleStatus: () {
+                                  final u = users[index];
+                                  final newStatus =
+                                      u.status == 'active' ? 'idle' : 'active';
+                                  _db.updateUser(u.id, {'status': newStatus});
+                                },
+                                onDelete: () => _confirmDelete(users[index]),
+                              ),
+                            );
+                          },
                         ),
-                      );
-                    },
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CircleIconButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-  final double size;
-  final Color? iconColor;
-
-  const _CircleIconButton({
-    required this.icon,
-    required this.onTap,
-    this.size = 30,
-    this.iconColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      customBorder: const CircleBorder(),
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: AppColors.line),
-          color: AppColors.card,
-        ),
-        child: Icon(icon, size: size * 0.48, color: iconColor ?? AppColors.ink),
-      ),
-    );
-  }
-}
-
-class _AddUserButton extends StatelessWidget {
-  final VoidCallback onTap;
-  const _AddUserButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(10, 7, 13, 7),
-        decoration: BoxDecoration(
-          color: AppColors.navy,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.add, size: 13, color: Colors.white),
-            SizedBox(width: 5),
-            Text(
-              'Tambah',
-              style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),
-            ),
-          ],
         ),
       ),
     );
@@ -245,89 +183,124 @@ class _AddUserButton extends StatelessWidget {
 
 class _UserRow extends StatelessWidget {
   final AppUser user;
+  final VoidCallback onToggleStatus;
   final VoidCallback onDelete;
-  const _UserRow({required this.user, required this.onDelete});
+
+  const _UserRow({
+    required this.user,
+    required this.onToggleStatus,
+    required this.onDelete,
+  });
+
+  String get _initials {
+    final parts = user.name.trim().split(RegExp(r'\s+'));
+    final letters = parts.map((p) => p.isNotEmpty ? p[0] : '').join();
+    return letters.length > 2 ? letters.substring(0, 2) : letters;
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+    final isActive = user.status == 'active';
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFAF9F5),
+        border: Border.all(color: AppColors.line),
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          CircleAvatar(
-            radius: 19,
-            backgroundColor: user.isActive ? AppColors.avatarNavyBg : AppColors.grayChip,
+          Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.avatarNavyBg,
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Text(
-              user.initials,
+              _initials.toUpperCase(),
               style: const TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.bold,
                 color: AppColors.navy,
+                fontSize: 13,
               ),
             ),
           ),
-          const SizedBox(width: 11),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  user.name,
-                  style: const TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.ink,
-                  ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        user.name,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: user.isAdmin
+                            ? AppColors.amberBg
+                            : AppColors.tealBg,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        user.role.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.bold,
+                          color: user.isAdmin
+                              ? AppColors.amber
+                              : AppColors.teal,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  user.username,
-                  overflow: TextOverflow.ellipsis,
+                  '@${user.username} · ${user.isAdmin ? 'Admin · semua kategori' : (user.category ?? '-')}',
                   style: const TextStyle(
-                    fontSize: 10.5,
-                    color: AppColors.inkSoft,
-                    fontFamily: 'monospace',
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.grayChip,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    user.categoryLabel,
-                    style: const TextStyle(fontSize: 10.5, color: AppColors.inkSoft),
-                  ),
+                      fontSize: 11.5, color: AppColors.inkSoft),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-            decoration: BoxDecoration(
-              color: user.isActive ? AppColors.tealBg : AppColors.grayChip,
-              borderRadius: BorderRadius.circular(20),
+          TextButton.icon(
+            onPressed: onToggleStatus,
+            style: TextButton.styleFrom(
+              backgroundColor:
+                  isActive ? AppColors.tealBg : const Color(0xFFE5E7EB),
+              foregroundColor:
+                  isActive ? AppColors.teal : const Color(0xFF4B5563),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(999)),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             ),
-            child: Text(
-              user.isActive ? 'Aktif' : 'Belum masuk',
-              style: TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w500,
-                color: user.isActive ? AppColors.teal : AppColors.inkSoft,
-              ),
+            icon: const Icon(Icons.power_settings_new, size: 13),
+            label: Text(user.status,
+                style: const TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.bold)),
+          ),
+          if (user.username != 'admin')
+            IconButton(
+              onPressed: onDelete,
+              icon: const Icon(Icons.delete_outline,
+                  color: AppColors.coral, size: 19),
+              tooltip: 'Hapus user',
             ),
-          ),
-          const SizedBox(width: 8),
-          _CircleIconButton(
-            icon: Icons.delete_outline,
-            size: 26,
-            iconColor: AppColors.inkSoft,
-            onTap: onDelete,
-          ),
         ],
       ),
     );

@@ -1,128 +1,160 @@
-# Akurasi — Manajemen User (Flutter + Firebase)
+# Akurasi Mitra10 — Flutter + Firebase Realtime Database
 
-Titik awal koding: layar **Manajemen user** (list, delete) + **Tambah user** (create),
-terhubung ke Firebase Realtime Database.
+Rebuild dari versi React/AI Studio sebelumnya menjadi **Flutter**, fokus pada
+4 fitur inti:
 
-## Struktur
+1. **Login awal** (2 langkah: nama user → kata sandi)
+2. **Manajemen User** (list, tambah, aktif/nonaktifkan, hapus)
+3. **Upload Data** (stok WMS vs NAV: file Excel, copy-paste teks, atau input manual)
+4. **Pemberian Misi** (penugasan kategori audit ke auditor)
+
+Fitur lain dari versi lama (Hasil laporan HIT/MISS/OVER, halaman "Kerjakan
+Misi Hari Ini", grafik donut, dsb) **belum dipindahkan** — silakan minta lagi
+kalau mau dilanjutkan, supaya fokus perbaikan sekarang tidak melebar.
+
+## Struktur proyek
 
 ```
 lib/
-  main.dart                     # entry point, init Firebase
-  firebase_options.dart         # config Firebase (perlu dilengkapi, lihat di bawah)
-  theme/app_colors.dart         # palet warna sesuai mockup HTML
-  models/app_user.dart          # model data user
-  screens/manajemen_user_screen.dart   # list user + tombol delete
-  screens/tambah_user_screen.dart      # form tambah user + role Admin/Client
+  main.dart                        # entry point, init Firebase, auth gate
+  firebase_options.dart            # config Firebase (lengkapi dulu, lihat di bawah)
+  theme/app_colors.dart            # palet warna sesuai mockup asli
+  models/
+    app_user.dart
+    category_assignment.dart       # + AuditItem, isInvalidCategoryName
+  services/
+    realtime_db_service.dart       # semua baca/tulis ke Realtime Database
+    excel_import_service.dart      # parsing .xlsx/.xls/.csv & paste teks
+  widgets/
+    app_badge.dart
+    common_widgets.dart            # AppCard, PrimaryButton, AppTextField, dll
+  screens/
+    login_username_screen.dart
+    login_password_screen.dart
+    menu_utama_screen.dart
+    manajemen_user_screen.dart
+    tambah_user_screen.dart
+    upload_data_screen.dart
+    mission_setup_screen.dart
 ```
 
 ## Struktur data di Realtime Database
 
 ```
 users/
-  -Nabc123/
+  <push-id>/
     name: "Sahat Sinaga"
-    email: "sahat.sinaga@mitra10.com"
-    role: "client"              # atau "admin"
-    category: "Floring & Wall"  # null kalau role admin
-    status: "idle"              # atau "active"
+    username: "sahat.sinaga"
+    password: "..."               # lihat catatan keamanan di bawah
+    role: "client"                 # atau "admin"
+    category: "Floring & Wall"     # null kalau role admin
+    status: "active"               # atau "idle"
+
+categories/
+  <push-id>/
+    categoryName: "Floring & Wall"
+    assignedUsername: "sahat.sinaga"   # atau null
+    status: "available"
+    itemCount: 42
+
+itemsMap/
+  <sanitized-category-key>/
+    categoryName: "Floring & Wall"
+    items: [ { id, name, codeWms, codeNav, wmsStock, navStock, status }, ... ]
+    updatedAt: "2026-07-23T..."
+
+meta/
+  lastUploadAt: "23/07/2026 10:40 WIB"
 ```
+
+Saat aplikasi pertama kali dijalankan dan node `users` masih kosong, otomatis
+dibuat akun admin awal: **username `admin`, password `admin123`** — segera
+ganti passwordnya lewat menu Manajemen User setelah login pertama.
 
 ## Langkah setup
 
 1. **Lengkapi `lib/firebase_options.dart`.**
-   Kamu sudah kasih `apiKey`, `authDomain`, `databaseURL`, `projectId`, tapi Firebase
-   butuh `appId` dan `messagingSenderId` juga (per platform: web/android/ios).
+   File ini sudah diisi `apiKey`, `appId`, `authDomain`, `projectId`, dan
+   `messagingSenderId` dari project Firebase yang sudah ada, TAPI kamu wajib
+   mengisi `databaseURL` yang benar (lihat Firebase Console → Realtime
+   Database → Create Database, lalu salin URL yang muncul di atas halaman).
    Cara termudah & paling aman dari typo — jalankan di root project:
    ```bash
    dart pub global activate flutterfire_cli
    flutterfire configure
    ```
-   Ini otomatis generate ulang `firebase_options.dart` yang benar untuk semua platform
-   yang kamu pilih (Android/iOS/Web), dan otomatis juga menaruh `google-services.json` /
-   `GoogleService-Info.plist` di tempat yang tepat.
 
 2. **Install dependency:**
    ```bash
    flutter pub get
    ```
 
-3. **Atur Security Rules di Firebase Console** (Realtime Database > Rules).
-   Untuk development cepat (⚠️ jangan dipakai di production):
-   ```json
-   {
-     "rules": {
-       "users": {
-         ".read": true,
-         ".write": true
-       }
-     }
-   }
-   ```
-   Nanti sebelum rilis, ganti jadi `auth != null` atau rules yang lebih ketat
-   (misal hanya admin yang bisa write ke node `users`).
+3. **Atur Security Rules** di Firebase Console → Realtime Database → Rules,
+   atau upload langsung isi file `database.rules.json` di repo ini. Untuk
+   development cepat, rules-nya masih `read: true, write: true` (⚠️ jangan
+   dipakai untuk produksi — lihat catatan keamanan di bawah).
 
 4. **Run:**
    ```bash
-   flutter run
+   flutter run -d chrome     # untuk web
+   flutter run                # untuk android/ios (device/emulator terhubung)
    ```
 
 ## Cara jalanin TANPA install apa-apa (via GitHub)
 
-Kamu nggak perlu install git, flutter, atau apapun di laptop. Cukup pakai browser.
+Kamu nggak perlu install git, Flutter, atau apapun di laptop. Cukup pakai
+browser.
 
 ### 1. Buat repo baru di GitHub
 - Buka https://github.com/new
-- Isi nama repo, misal `akurasi_app` — **catat nama ini**, karena dipakai di step 3.
+- Isi nama repo, misal `akurasi_app` — **catat nama ini**, dipakai di step 3.
 - Pilih **Public** (GitHub Pages gratis hanya jalan di repo public).
-- Klik **Create repository**, biarkan kosong (jangan centang "Add README").
+- Klik **Create repository**, biarkan kosong.
 
 ### 2. Upload semua file project ini
-- Di halaman repo yang baru dibuat, klik **"uploading an existing file"** (atau menu **Add file → Upload files**).
-- **Drag & drop seluruh folder** `akurasi_app` (termasuk folder `.github`, `lib`, dan file `pubspec.yaml`) ke area upload. Browser modern (Chrome) akan mempertahankan struktur foldernya otomatis.
+- Di halaman repo, klik **Add file → Upload files**.
+- Drag & drop seluruh isi folder ini (termasuk `.github`, `lib`, `web`, dan
+  `pubspec.yaml`) ke area upload.
 - Scroll ke bawah, klik **Commit changes**.
 
-> Kalau drag-folder nggak jalan di browser kamu: upload manual per folder — masuk ke tiap
-> subfolder pakai "Add file" satu-satu sambil ketik path lengkapnya, misal
-> `lib/screens/manajemen_user_screen.dart`, GitHub otomatis bikin foldernya.
-
 ### 3. Sesuaikan nama repo di workflow (kalau beda dari `akurasi_app`)
-- Buka file `.github/workflows/deploy.yml` di repo, klik ikon pensil (Edit).
-- Ganti `"/akurasi_app/"` jadi `"/nama-repo-kamu/"` (harus persis sama, termasuk garis miring di awal & akhir).
+- Buka `.github/workflows/deploy.yml`, klik ikon pensil (Edit).
+- Ganti `"/akurasi_app/"` jadi `"/nama-repo-kamu/"` (harus persis sama,
+  termasuk garis miring di awal & akhir).
 - Commit changes.
 
 ### 4. Nyalakan GitHub Pages
 - Repo → **Settings → Pages**.
-- Di bagian **"Build and deployment" → Source**, pilih **"GitHub Actions"**.
+- Di **"Build and deployment" → Source**, pilih **"GitHub Actions"**.
 
 ### 5. Tunggu Actions selesai build
-- Klik tab **Actions** di repo → akan ada workflow run "Deploy Flutter Web to GitHub Pages"
-  yang otomatis jalan setelah commit di step 2/3.
-- Tunggu sampai centang hijau ✅ (biasanya 3–5 menit — GitHub yang install & jalanin Flutter di server-nya, bukan di laptop kamu).
-- Setelah selesai, buka lagi **Settings → Pages** — akan muncul link seperti:
-  `https://<username-kamu>.github.io/akurasi_app/`
-- Buka link itu di Chrome — aplikasinya langsung jalan di situ, dan link ini bisa
-  dibuka ulang kapan saja tanpa build ulang.
+- Tab **Actions** → workflow "Deploy Flutter Web to GitHub Pages" akan
+  otomatis jalan.
+- Setelah centang hijau ✅ (biasanya 3–6 menit), buka lagi
+  **Settings → Pages** untuk link `https://<username-kamu>.github.io/akurasi_app/`.
 
 ### 6. Update selanjutnya
-Setiap kali kamu (atau saya bantu edit lalu kasih file baru) upload ulang/replace file
-lewat GitHub web UI, workflow otomatis jalan lagi dan situsnya ter-update sendiri.
+Setiap kali file diupload ulang/diganti lewat GitHub web UI, workflow
+otomatis jalan lagi dan situsnya ter-update sendiri.
 
-### ⚠️ Catatan keamanan
-Karena situsnya PUBLIC (siapa saja bisa buka link-nya), dan Security Rules Realtime
-Database saat ini masih `read: true, write: true` untuk testing — **siapapun yang tau
-link Firebase-nya bisa baca/ubah/hapus data user**. Ini oke untuk tahap testing, tapi
-sebelum dipakai beneran:
-- Ganti rules jadi butuh autentikasi (`auth != null`), dan
-- Tambahkan Firebase Authentication supaya hanya user yang login yang bisa akses.
+## ⚠️ Catatan keamanan (penting sebelum dipakai beneran)
 
+- Rules Realtime Database saat ini masih `read: true, write: true` untuk
+  testing — siapapun yang tahu URL project Firebase-nya bisa baca/ubah/hapus
+  semua data. Sebelum dipakai produksi:
+  - Tambahkan **Firebase Authentication** (email/password) supaya login
+    tidak hanya mengecek password di database secara manual.
+  - Ganti rules jadi butuh `auth != null`, dan idealnya batasi field
+    tertentu (mis. hanya admin yang boleh menulis ke `users`).
+- Password user saat ini disimpan sebagai teks biasa di database (mengikuti
+  desain versi sebelumnya) — ini **tidak aman untuk produksi**. Migrasi ke
+  Firebase Authentication akan menghilangkan kebutuhan menyimpan password
+  manual sama sekali.
 
+## Yang sengaja belum dipindahkan dari versi lama
 
-- Form "Tambah user" saat ini **hanya menulis data profil** (nama, email, role,
-  kategori) ke Realtime Database — belum membuat akun login sungguhan. Untuk auth
-  asli (supaya user bisa login pakai email+password), tambahkan **Firebase
-  Authentication** dan panggil `createUserWithEmailAndPassword` saat simpan.
-  Field password belum ada di form ini karena menunggu keputusan itu — kabari kalau
-  mau saya tambahkan sekalian.
-- `status` (`active`/`idle`) idealnya di-update otomatis saat user login pertama kali
-  (misal lewat Cloud Function `onCreate`/`onLogin` atau di-set manual saat auth
-  berhasil), bukan diisi manual selamanya.
+- Layar **"Misi Hari Ini"** (auditor mengerjakan/checklist item HIT/MISS/OVER)
+- Layar **Hasil** (rekap laporan akurasi + grafik donut)
+- Layar **Data** (ringkasan info laporan sebelum masuk Upload Data)
+
+Beri tahu saja kalau salah satu di atas mau dilanjutkan berikutnya.

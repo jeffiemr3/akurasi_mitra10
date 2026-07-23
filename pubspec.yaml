@@ -1,17 +1,21 @@
-name: akurasi
-description: Akurasi - stock audit app Mitra10
+name: akurasi_mitra10
+description: "Akurasi Mitra10 - Login, Manajemen User, Upload Data, dan Pemberian Misi (Flutter + Firebase Realtime Database)."
 publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: '>=3.3.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.6
+  cupertino_icons: ^1.0.8
+
+  # Firebase (Realtime Database)
   firebase_core: ^3.6.0
   firebase_database: ^11.1.4
+
+  # Upload file Excel (.xlsx/.xls/.csv) - murni Dart, jalan di Web & Mobile
   file_picker: ^8.1.2
   excel: ^4.0.6
 
@@ -22,5 +26,3 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  assets:
-    - assets/images/

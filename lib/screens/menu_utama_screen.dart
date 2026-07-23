@@ -1,45 +1,25 @@
 import 'package:flutter/material.dart';
 
+import '../models/app_user.dart';
 import '../theme/app_colors.dart';
-import 'data_screen.dart';
-import 'hasil_screen.dart';
+import '../widgets/common_widgets.dart';
 import 'manajemen_user_screen.dart';
 import 'mission_setup_screen.dart';
-// Sesuaikan dengan nama file & class layar login/buat-akun kamu yang sebenarnya.
-import 'login_screen.dart';
+import 'upload_data_screen.dart';
 
+/// Menu utama sederhana untuk admin — pusat navigasi ke 3 fitur inti yang
+/// jadi fokus perbaikan: Manajemen User, Upload Data, dan Atur Misi.
+/// (Menggantikan MenuUtamaScreen.tsx yang tadinya juga berisi menu Hasil/Data
+/// laporan — disederhanakan sesuai permintaan.)
 class MenuUtamaScreen extends StatelessWidget {
-  final String name;
+  final AppUser currentUser;
+  final VoidCallback onLogout;
 
-  const MenuUtamaScreen({super.key, required this.name});
-
-  Future<void> _confirmLogout(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Keluar akun?'),
-        content: const Text('Kamu akan kembali ke halaman login.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Batal'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text('Keluar', style: TextStyle(color: AppColors.coral)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && context.mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-        (route) => false,
-      );
-    }
-  }
+  const MenuUtamaScreen({
+    super.key,
+    required this.currentUser,
+    required this.onLogout,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -47,135 +27,80 @@ class MenuUtamaScreen extends StatelessWidget {
       backgroundColor: AppColors.bg,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'MENU UTAMA',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.2,
-                      color: AppColors.inkSoft,
-                    ),
-                  ),
-                  InkWell(
-                    onTap: () => _confirmLogout(context),
-                    customBorder: const CircleBorder(),
-                    child: Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.card,
-                        border: Border.all(color: AppColors.line),
-                      ),
-                      child: Icon(
-                        Icons.logout_rounded,
-                        size: 16,
-                        color: AppColors.coral,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: AppColors.card,
-                    borderRadius: BorderRadius.circular(28),
-                  ),
-                  child: Column(
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Selamat bertugas,',
-                        style: TextStyle(fontSize: 13, color: AppColors.inkSoft),
-                      ),
-                      Text(
-                        name,
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.ink,
+                        'AKURASI MITRA10',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.2,
+                          color: AppColors.inkSoft,
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      Expanded(
-                        child: GridView.count(
-                          crossAxisCount: 2,
-                          mainAxisSpacing: 14,
-                          crossAxisSpacing: 14,
-                          childAspectRatio: 1.15,
-                          children: [
-                            _MenuCard(
-                              label: 'Atur misi',
-                              icon: Icons.checklist_rounded,
-                              iconBg: AppColors.avatarNavyBg,
-                              iconColor: AppColors.navy,
-                              enabled: true,
-                              onTap: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => const MissionSetupScreen(),
-                                  ),
-                                );
-                              },
-                            ),
-                            _MenuCard(
-                              label: 'Hasil',
-                              icon: Icons.show_chart_rounded,
-                              iconBg: AppColors.tealBg,
-                              iconColor: AppColors.teal,
-                              enabled: true,
-                              onTap: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => const HasilScreen(),
-                                  ),
-                                );
-                              },
-                            ),
-                            _MenuCard(
-                              label: 'Create user',
-                              icon: Icons.person_add_alt_1_rounded,
-                              iconBg: AppColors.amberBg,
-                              iconColor: AppColors.amber,
-                              enabled: true,
-                              onTap: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => const ManajemenUserScreen(),
-                                  ),
-                                );
-                              },
-                            ),
-                            _MenuCard(
-                              label: 'Data',
-                              icon: Icons.storage_rounded,
-                              iconBg: AppColors.coralBg,
-                              iconColor: AppColors.coral,
-                              enabled: true,
-                              onTap: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => const DataScreen(),
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
+                      const SizedBox(height: 2),
+                      Text(
+                        'Halo, ${currentUser.name}',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.ink,
                         ),
                       ),
                     ],
                   ),
+                  IconButton(
+                    onPressed: onLogout,
+                    icon: const Icon(Icons.logout, color: AppColors.coral),
+                    tooltip: 'Keluar',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Expanded(
+                child: ListView(
+                  children: [
+                    _MenuTile(
+                      icon: Icons.people_alt_outlined,
+                      title: 'Manajemen User',
+                      subtitle: 'Kelola akun auditor & administrator',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const ManajemenUserScreen(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _MenuTile(
+                      icon: Icons.upload_file_outlined,
+                      title: 'Upload Data',
+                      subtitle: 'Masukkan data stok WMS vs NAV (Excel/paste/manual)',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const UploadDataScreen(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _MenuTile(
+                      icon: Icons.assignment_turned_in_outlined,
+                      title: 'Atur / Beri Misi',
+                      subtitle: 'Tugaskan kategori audit ke auditor',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const MissionSetupScreen(),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -186,70 +111,63 @@ class MenuUtamaScreen extends StatelessWidget {
   }
 }
 
-class _MenuCard extends StatelessWidget {
-  final String label;
+class _MenuTile extends StatelessWidget {
   final IconData icon;
-  final Color iconBg;
-  final Color iconColor;
-  final bool enabled;
-  final VoidCallback? onTap;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
 
-  const _MenuCard({
-    required this.label,
+  const _MenuTile({
     required this.icon,
-    required this.iconBg,
-    required this.iconColor,
-    required this.enabled,
-    this.onTap,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final content = Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.fieldFill,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.line),
+    return AppCard(
+      padding: const EdgeInsets.all(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppColors.avatarNavyBg,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(icon, color: AppColors.navy),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style:
+                        const TextStyle(fontSize: 12, color: AppColors.inkSoft),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppColors.inkSoft),
+          ],
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: enabled ? iconBg : AppColors.grayChip,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              icon,
-              size: 20,
-              color: enabled ? iconColor : AppColors.inkSoft.withOpacity(0.5),
-            ),
-          ),
-          const Spacer(),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13.5,
-              fontWeight: FontWeight.w600,
-              color: enabled ? AppColors.ink : AppColors.inkSoft,
-            ),
-          ),
-        ],
-      ),
-    );
-
-    return Opacity(
-      opacity: enabled ? 1 : 0.55,
-      child: enabled
-          ? InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(18),
-              child: content,
-            )
-          : content,
     );
   }
 }

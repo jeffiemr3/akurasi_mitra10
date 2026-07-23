@@ -4,28 +4,26 @@ import '../models/app_user.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_badge.dart';
 import '../widgets/common_widgets.dart';
+import 'login_password_screen.dart';
 
-/// Langkah 2 dari login: masukkan kata sandi.
-/// Porting dari src/screens/LoginPasswordScreen.tsx
-class LoginPasswordScreen extends StatefulWidget {
-  final String username;
+/// Langkah 1 dari login: masukkan nama user.
+/// Porting dari src/screens/LoginUsernameScreen.tsx
+class LoginUsernameScreen extends StatefulWidget {
   final List<AppUser> users;
   final void Function(AppUser loggedInUser) onLoginSuccess;
 
-  const LoginPasswordScreen({
+  const LoginUsernameScreen({
     super.key,
-    required this.username,
     required this.users,
     required this.onLoginSuccess,
   });
 
   @override
-  State<LoginPasswordScreen> createState() => _LoginPasswordScreenState();
+  State<LoginUsernameScreen> createState() => _LoginUsernameScreenState();
 }
 
-class _LoginPasswordScreenState extends State<LoginPasswordScreen> {
+class _LoginUsernameScreenState extends State<LoginUsernameScreen> {
   final _controller = TextEditingController();
-  bool _showPassword = false;
   String? _error;
 
   @override
@@ -34,32 +32,41 @@ class _LoginPasswordScreenState extends State<LoginPasswordScreen> {
     super.dispose();
   }
 
-  void _handleSubmit() {
-    final password = _controller.text;
-    if (password.isEmpty) {
-      setState(() => _error = 'Kata sandi wajib diisi');
+  void _handleNext() {
+    final typed = _controller.text.trim();
+    if (typed.isEmpty) {
+      setState(() => _error = 'Nama user wajib diisi');
       return;
     }
 
-    AppUser? user;
+    AppUser? matchedUser;
     for (final u in widget.users) {
-      if (u.username.toLowerCase() == widget.username.toLowerCase()) {
-        user = u;
+      if (u.username.toLowerCase() == typed.toLowerCase()) {
+        matchedUser = u;
         break;
       }
     }
 
-    if (user == null) {
-      setState(() => _error = 'user tidak terdaftar');
-      return;
-    }
-    if (user.password != password) {
-      setState(() => _error = 'password salah !');
-      return;
+    if (widget.users.isNotEmpty) {
+      if (matchedUser == null) {
+        setState(() => _error = 'user tidak terdaftar');
+        return;
+      }
+      if (!matchedUser.isActive) {
+        setState(() =>
+            _error = 'Akun @${matchedUser!.username} sedang dinonaktifkan oleh Admin.');
+        return;
+      }
     }
 
     setState(() => _error = null);
-    widget.onLoginSuccess(user);
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => LoginPasswordScreen(
+        username: matchedUser?.username ?? typed,
+        users: widget.users,
+        onLoginSuccess: widget.onLoginSuccess,
+      ),
+    ));
   }
 
   @override
@@ -72,17 +79,11 @@ class _LoginPasswordScreenState extends State<LoginPasswordScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  BackCircleButton(onPressed: () => Navigator.of(context).pop()),
-                  const SizedBox(width: 8),
-                  const ScreenLabel('Masuk'),
-                ],
-              ),
+              const ScreenLabel('Masuk'),
               Expanded(
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 400),
+                    constraints: const BoxConstraints(maxWidth: 420),
                     child: SingleChildScrollView(
                       child: AppCard(
                         padding: const EdgeInsets.all(28),
@@ -101,52 +102,29 @@ class _LoginPasswordScreenState extends State<LoginPasswordScreen> {
                             ),
                             const SizedBox(height: 4),
                             const Text(
-                              'Kata Sandi',
+                              'Akurasi',
                               style: TextStyle(
                                 fontSize: 26,
                                 fontWeight: FontWeight.bold,
                                 color: AppColors.ink,
                               ),
                             ),
-                            const SizedBox(height: 6),
-                            RichText(
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Masuk dengan nama user kamu untuk\nmulai misi hari ini',
                               textAlign: TextAlign.center,
-                              text: TextSpan(
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  color: AppColors.inkSoft,
-                                ),
-                                children: [
-                                  const TextSpan(
-                                      text: 'Masukkan kata sandi untuk akun '),
-                                  TextSpan(
-                                    text: '@${widget.username}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.navy,
-                                    ),
-                                  ),
-                                ],
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppColors.inkSoft,
+                                height: 1.4,
                               ),
                             ),
                             const SizedBox(height: 24),
                             AppTextField(
                               controller: _controller,
-                              label: 'Kata sandi',
-                              hint: 'Masukkan kata sandi',
-                              obscure: !_showPassword,
+                              label: 'Nama user',
+                              hint: 'nama.user (mis: admin, sahat.sinaga)',
                               autofocus: true,
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _showPassword
-                                      ? Icons.visibility_off
-                                      : Icons.visibility,
-                                  size: 18,
-                                  color: AppColors.inkSoft,
-                                ),
-                                onPressed: () =>
-                                    setState(() => _showPassword = !_showPassword),
-                              ),
                             ),
                             if (_error != null) ...[
                               const SizedBox(height: 6),
@@ -162,8 +140,21 @@ class _LoginPasswordScreenState extends State<LoginPasswordScreen> {
                                 ),
                               ),
                             ],
-                            const SizedBox(height: 24),
-                            PrimaryButton(label: 'Masuk', onPressed: _handleSubmit),
+                            const SizedBox(height: 20),
+                            PrimaryButton(
+                              label: 'Lanjutkan',
+                              onPressed: _handleNext,
+                            ),
+                            const SizedBox(height: 20),
+                            const Text(
+                              'Dengan melanjutkan, kamu menyetujui Ketentuan Layanan dan Kebijakan Privasi.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: AppColors.inkSoft,
+                                height: 1.4,
+                              ),
+                            ),
                           ],
                         ),
                       ),
